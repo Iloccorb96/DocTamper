@@ -2,7 +2,7 @@ import os
 import cv2
 import lmdb
 import torch
-import jpegio
+# import jpegio
 import numpy as np
 import torch.nn as nn
 import gc
@@ -75,11 +75,11 @@ class SCSEModule(nn.Module):
 class ConvBlock(nn.Module):
     def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)#深度可分离卷积层
         self.norm = LayerNorm(dim, eps=1e-6)
-        self.pwconv1 = nn.Linear(dim, 4 * dim)
+        self.pwconv1 = nn.Linear(dim, 4 * dim)#全连接层，用于改变特征图的通道数。
         self.act = nn.GELU()
-        self.pwconv2 = nn.Linear(4 * dim, dim)
+        self.pwconv2 = nn.Linear(4 * dim, dim)#全连接层，用于改变特征图的通道数。
         self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim)), requires_grad=True) if layer_scale_init_value > 0 else None
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
@@ -117,9 +117,15 @@ class AddCoords(nn.Module):
 class VPH(nn.Module):
     def __init__(self, dims=[96, 192], drop_path_rate=0.4, layer_scale_init_value=1e-6):
         super().__init__()
-        dp_rates=[x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
-        self.downsample_layers = nn.ModuleList([nn.Sequential(nn.Conv2d(6, dims[0], kernel_size=4, stride=4), LayerNorm(dims[0], eps=1e-6, data_format="channels_first")), nn.Sequential(LayerNorm(dims[1], eps=1e-6, data_format="channels_first"),nn.Conv2d(dims[1], dims[2], kernel_size=2, stride=2))])
-        self.stages = nn.ModuleList([nn.Sequential(*[ConvBlock(dim=dims[0], drop_path=dp_rates[j],layer_scale_init_value=layer_scale_init_value) for j in range(3)]), nn.Sequential(*[ConvBlock(dim=dims[1], drop_path=dp_rates[3 + j],layer_scale_init_value=layer_scale_init_value) for j in range(3)])])
+        dp_rates=[x.item() for x in torch.linspace(0, drop_path_rate, 6)]
+        self.downsample_layers = nn.ModuleList([nn.Sequential(nn.Conv2d(3, dims[0], kernel_size=4, stride=4),
+                                                              LayerNorm(dims[0], eps=1e-6, data_format="channels_first")),
+                                                nn.Sequential(LayerNorm(dims[1], eps=1e-6, data_format="channels_first"),
+                                                              nn.Conv2d(dims[0], dims[1], kernel_size=2, stride=2))])
+        self.stages = nn.ModuleList([nn.Sequential(*[ConvBlock(dim=dims[0], drop_path=dp_rates[j],
+                                                               layer_scale_init_value=layer_scale_init_value) for j in range(3)]),
+                                     nn.Sequential(*[ConvBlock(dim=dims[1], drop_path=dp_rates[3 + j],
+                                                               layer_scale_init_value=layer_scale_init_value) for j in range(3)])])
         self.apply(self._init_weights)
 
     def initnorm(self):
@@ -291,8 +297,8 @@ class MID(nn.Module):
 class DTD(SegmentationModel):
     def __init__(self, encoder_name = "resnet18", decoder_channels = (384, 192, 96, 64), classes = 1):
         super().__init__()
-        self.vph = torch.load('vph_imagenet.pt')
-        self.swin = torch.load('swin_imagenet.pt')
+        self.vph = VPH()
+        self.swin = SwinTransformerV2()
         self.fph = FPH()
         self.decoder = MID(encoder_channels=(96, 192, 384, 768), decoder_channels=decoder_channels)
         self.segmentation_head = SegmentationHead(in_channels=decoder_channels[-1], out_channels=classes, upsampling=2.0)

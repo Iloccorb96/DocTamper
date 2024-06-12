@@ -7,6 +7,7 @@ from utils import trainer
 from dataset import dataset
 from dataset import train_transform, val_transform
 from torch.cuda.amp import autocast
+from models import dtd
 #
 import segmentation_models_pytorch as smp
 Image.MAX_IMAGE_PIXELS = 1000000000000000
@@ -29,10 +30,12 @@ val_imgs_dir = os.path.join(data_dir, "val_images/")
 
 train_labels_dir = os.path.join(data_dir, "train_labels/")
 val_labels_dir = os.path.join(data_dir, "val_labels/")
-train_data = RSCDataset(train_imgs_dir, train_labels_dir, transform=train_transform)
-valid_data = RSCDataset(val_imgs_dir, val_labels_dir, transform=val_transform)
+train_data = dataset(train_imgs_dir, train_labels_dir, transform=train_transform)
+valid_data = dataset(val_imgs_dir, val_labels_dir, transform=val_transform)
 
 # 网络
+
+
 
 class seg_qyl(nn.Module):
     def __init__(self, model_name, n_class):
@@ -84,4 +87,4 @@ param['load_ckpt_dir'] = None
 
 #
 # 训练
-best_model, model = train_net_qyl(param, model, train_data, valid_data)
+best_model, model = trainer(param, model, train_data, valid_data)
