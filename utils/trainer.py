@@ -16,9 +16,11 @@ from torch.utils.data import Dataset, DataLoader
 
 from utils.utils import AverageMeter  # , inial_logger
 from .log import get_logger
-from .metric import IOUMetric
+from .metrics import IOUMetric
 from torch.cuda.amp import autocast, GradScaler  # need pytorch>1.6
-from losses import DiceLoss, FocalLoss, SoftCrossEntropyLoss, LovaszLoss
+#引用上级目录中的losses文件夹下的函数
+from ..loss import lovasz, soft_ce
+
 
 Image.MAX_IMAGE_PIXELS = 1000000000000000
 
@@ -40,20 +42,18 @@ def train_net(param, model, train_data, valid_data, plot=False, device='cuda'):
     train_data_size = train_data.__len__()
     valid_data_size = valid_data.__len__()
     c, y, x = train_data.__getitem__(0)['image'].shape
+
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=4)
     valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=False, num_workers=4)
+
     optimizer = optim.AdamW(model.parameters(), lr=3e-4, weight_decay=5e-4)
-    # optimizer = optim.SGD(model.parameters(), lr=1e-2, momentum=momentum, weight_decay=weight_decay)
-    # optimizer=Ranger(model.parameters(),lr=1e-3)
-    # scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=T0, T_mult=2, eta_min=1e-6,
                                                                      last_epoch=-1)
-    # scheduler=ShopeeScheduler(optimizer,**scheduler_params)
-    # criterion = nn.CrossEntropyLoss(reduction='mean').to(device)
-    DiceLoss_fn = DiceLoss(mode='multiclass')
-    # LovaszLoss_fn=LovaszLoss(mode='multiclass')
-    SoftCrossEntropy_fn = SoftCrossEntropyLoss(smooth_factor=0.1)
-    # logger = inial_logger(os.path.join(save_log_dir, time.strftime("%m-%d %H:%M:%S", time.localtime()) +'_'+model_name+ '.log'))
+
+    LovaszLoss_fn = lovasz.LovaszLoss(mode='binary')#针对不平衡分类问题的损失函数
+    SoftCrossEntropy_fn = soft_ce.SoftCrossEntropyLoss(smooth_factor=0.1)
+
+
     logger = get_logger(
         os.path.join(save_log_dir, time.strftime("%m-%d %H:%M:%S", time.localtime()) + '_' + model_name + '.log'))
     # 主循环
@@ -83,17 +83,18 @@ def train_net(param, model, train_data, valid_data, plot=False, device='cuda'):
         for batch_idx, batch_samples in enumerate(train_loader):
             data, target = batch_samples['image'], batch_samples['label']
             data, target = Variable(data.to(device)), Variable(target.to(device))
+            optimizer.zero_grad()
             with autocast():  # need pytorch>1.6
                 pred = model(data)
-                loss = 5. * DiceLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
+                loss = LovaszLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
-                optimizer.zero_grad()
-            scheduler.step(epoch + batch_idx / train_loader_size)
-            image_loss = loss.item()
-            train_epoch_loss.update(image_loss)
-            train_iter_loss.update(image_loss)
+
+            scheduler.step(epoch + batch_idx / train_loader_size)# 可以在每个批次结束后更新学习率，而不是等到整个 epoch 结束
+            image_loss = loss.item()# 计算损失
+            train_epoch_loss.update(image_loss)# 更新损失
+            train_iter_loss.update(image_loss)# 更新损失
             if batch_idx % iter_inter == 0:
                 spend_time = time.time() - epoch_start
                 logger.info('[train] epoch:{} iter:{}/{} {:.2f}% lr:{:.6f} loss:{:.6f} ETA:{}min'.format(
@@ -113,7 +114,7 @@ def train_net(param, model, train_data, valid_data, plot=False, device='cuda'):
                 data, target = batch_samples['image'], batch_samples['label']
                 data, target = Variable(data.to(device)), Variable(target.to(device))
                 pred = model(data)
-                loss = 5 * DiceLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
+                loss = LovaszLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
                 pred = pred.cpu().data.numpy()
                 pred = np.argmax(pred, axis=1)
                 iou.add_batch(pred, target.cpu().data.numpy())
@@ -125,8 +126,8 @@ def train_net(param, model, train_data, valid_data, plot=False, device='cuda'):
                 #     logger.info('[val] epoch:{} iter:{}/{} {:.2f}% loss:{:.6f}'.format(
                 #         epoch, batch_idx, valid_loader_size, batch_idx / valid_loader_size * 100, valid_iter_loss.avg))
             val_loss = valid_iter_loss.avg
-            acc, acc_cls, iu, mean_iu, fwavacc = iou.evaluate()
-            logger.info('[val] epoch:{} iou:{}'.format(epoch, iu))
+            acc, acc_cls, iu, mean_iu, fwavacc, precision, recall, f1 = iou.evaluate()
+            logger.info('[val] epoch:{} iou:{},acc:{}, precision:{},recall:{},f1:{}'.format(epoch, iu,acc,precision, recall, f1))
 
         # 保存loss、lr
         train_loss_total_epochs.append(train_epoch_loss.avg)

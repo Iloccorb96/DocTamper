@@ -7,7 +7,7 @@ from utils import trainer
 from dataset import dataset
 from dataset import train_transform, val_transform
 from torch.cuda.amp import autocast
-from models import dtd
+from models.dtd import *
 #
 import segmentation_models_pytorch as smp
 Image.MAX_IMAGE_PIXELS = 1000000000000000
@@ -33,30 +33,11 @@ val_labels_dir = os.path.join(data_dir, "val_labels/")
 train_data = dataset(train_imgs_dir, train_labels_dir, transform=train_transform)
 valid_data = dataset(val_imgs_dir, val_labels_dir, transform=val_transform)
 
-# 网络
-
-
-
-class seg_qyl(nn.Module):
-    def __init__(self, model_name, n_class):
-        super().__init__()
-        self.model = smp.UnetPlusPlus (# UnetPlusPlus / DeepLabV3Plus
-                encoder_name=model_name,        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-                encoder_weights="imagenet",     # use `imagenet` pretrained weights for encoder initialization
-                in_channels=3,                  # model input channels (1 for grayscale images, 3 for RGB, etc.)
-                classes=n_class,                      # model output channels (number of classes in your dataset)
-            )
-    @autocast()
-    def forward(self, x):
-        #with autocast():
-        x = self.model(x)
-        return x
-#pretrained for efficient:imagenet / advprop / noisy-student
-
-model_name = 'efficientnet-b6'#
-n_class=2
-model=seg_qyl(model_name,n_class).cuda()
-model= torch.nn.DataParallel(model)
+# 网络初始化
+model_name = 'seg_dtd'
+model = seg_dtd()
+model = model.cuda()
+model = torch.nn.DataParallel(model)
 # checkpoints=torch.load('outputs/efficientnet-b6-3729/ckpt/checkpoint-epoch20.pth')
 # model.load_state_dict(checkpoints['state_dict'])
 # 模型保存路径
@@ -70,7 +51,7 @@ if not os.path.exists(save_log_dir):
 # 参数设置
 param = {}
 
-param['epochs'] = 45          # 训练轮数，请和scheduler的策略对应，不然复现不出效果，对于t0=3,t_mut=2的scheduler来讲，44的时候会达到最优
+param['epochs'] = 45          # 训练轮数，请和scheduler的策略对应，不然复现不出效果，对于t0=3,t_mut=2的scheduler来讲，44的时候会达到最优；3个epoch的时间段后重置，并且每隔2个epoch调整一次学习率
 param['batch_size'] = 32       # 批大小
 param['disp_inter'] = 1       # 显示间隔(epoch)
 param['save_inter'] = 4       # 保存间隔(epoch)

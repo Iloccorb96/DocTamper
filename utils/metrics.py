@@ -1,8 +1,5 @@
-import os
-import cv2
-import lmdb
+
 import torch
-import jpegio
 import numpy as np
 
 
@@ -10,15 +7,18 @@ class IOUMetric:
     def __init__(self, num_classes=10):
         self.num_classes = num_classes
         self.hist = np.zeros((num_classes, num_classes))
+
     def _fast_hist(self, label_pred, label_true):
         mask = (label_true >= 0) & (label_true < self.num_classes)
         hist = np.bincount(
             self.num_classes * label_true[mask].astype(int) +
             label_pred[mask], minlength=self.num_classes ** 2).reshape(self.num_classes, self.num_classes)
         return hist
+
     def add_batch(self, predictions, gts):
         for lp, lt in zip(predictions, gts):
             self.hist += self._fast_hist(lp.flatten(), lt.flatten())
+
     def evaluate(self):
         acc = np.diag(self.hist).sum() / self.hist.sum()
         acc_cls = np.diag(self.hist) / self.hist.sum(axis=1)
@@ -27,7 +27,17 @@ class IOUMetric:
         mean_iu = np.nanmean(iu)
         freq = self.hist.sum(axis=1) / self.hist.sum()
         fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
-        return acc, acc_cls, iu, mean_iu, fwavacc
+
+        # Precision and Recall
+        precision = np.diag(self.hist) / self.hist.sum(axis=0)
+        recall = np.diag(self.hist) / self.hist.sum(axis=1)
+        precision = np.nanmean(precision)
+        recall = np.nanmean(recall)
+
+        # F1 Score
+        f1 = 2 * (precision * recall) / (precision + recall + 1e-8)
+
+        return acc, acc_cls, iu, mean_iu, fwavacc, precision, recall, f1
 
 
 iou=IOUMetric(2)

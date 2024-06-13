@@ -1,51 +1,42 @@
+import cv2
 import os
-import time
-import logging
-
-class AverageMeter(object):
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-def second2time(second):
-    if second < 60:
-        return str('{}'.format(round(second, 4)))
-    elif second < 60*60:
-        m = second//60
-        s = second % 60
-        return str('{}:{}'.format(int(m), round(s, 1)))
-    elif second < 60*60*60:
-        h = second//(60*60)
-        m = second % (60*60)//60
-        s = second % (60*60) % 60
-        return str('{}:{}:{}'.format(int(h), int(m), int(s)))
-
-def inial_logger(file):
-    logger = logging.getLogger('log')
-    logger.setLevel(level=logging.DEBUG)
-
-    formatter = logging.Formatter('%(message)s')
-
-    file_handler = logging.FileHandler(file)
-    file_handler.setLevel(level=logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-
-    return logger
+import glob
+from tqdm import tqdm
+import torch
+from torchvision import models
+import matplotlib.pyplot as plt
+#画出余弦学习率的变化规律
+def visulize_cosine_lr(net,max_epoch,optimizer,lr_scheduler,iters=100):
+    plt.figure()
+    cur_lr_list = []
+    cur_lr = optimizer.param_groups[-1]['lr']
+    cur_lr_list.append(cur_lr)
+    for epoch in range(max_epoch):
+        #print('epoch_{}'.format(epoch))
+        # cur_lr = optimizer.param_groups[-1]['lr']
+        # cur_lr_list.append(cur_lr)
+        for batch in range(iters):
+            optimizer.step()
+            scheduler.step(epoch + batch / iters)
+        cur_lr = optimizer.param_groups[-1]['lr']
+        cur_lr_list.append(cur_lr)
+            #scheduler.step(epoch + batch / iters)
+            #scheduler.step()
+        #print('cur_lr:',cur_lr)
+        #print('epoch_{}_end'.format(epoch))
+        lr_scheduler.step()
+        print('epoch: {},cur_lr: {}'.format(epoch,cur_lr))
+    x_list = list(range(len(cur_lr_list)))
+    plt.title('Cosine lr  T_0:{}  T_mult:{}'.format(T_0,T_mult))
+    plt.xlabel('epoch')
+    plt.ylabel('lr')
+    plt.plot(x_list, cur_lr_list)
+    plt.savefig('./lr.png')
+if __name__=='__main__':
+    model=models.resnet18(pretrained=False)
+    T_0=3
+    T_mult=3
+    optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9, weight_decay=5e-4)
+    #scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=T_0, T_mult=T_mult, eta_min=1e-6, last_epoch=-1)
+    visulize_cosine_lr(model,124,optimizer,scheduler,100)

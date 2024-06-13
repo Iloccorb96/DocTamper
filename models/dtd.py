@@ -37,7 +37,9 @@ from typing import Optional, Union, List
 from segmentation_models_pytorch.base import SegmentationModel
 
 class LayerNorm(nn.Module):
+    # LayerNorm
     def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
+        #normalized_shape是输入通道数
         super().__init__()
         self.weight = nn.Parameter(torch.ones(normalized_shape))
         self.bias = nn.Parameter(torch.zeros(normalized_shape))
@@ -48,9 +50,9 @@ class LayerNorm(nn.Module):
         self.normalized_shape = (normalized_shape, )
 
     def forward(self, x):
-        if self.data_format == "channels_last":
+        if self.data_format == "channels_last":#Channels Last (NHWC)
             return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
-        elif self.data_format == "channels_first":
+        elif self.data_format == "channels_first":#Channels First (NCHW)
             u = x.mean(1, keepdim=True)
             s = (x - u).pow(2).mean(1, keepdim=True)
             x = (x - u) / torch.sqrt(s + self.eps)
@@ -73,27 +75,28 @@ class SCSEModule(nn.Module):
         return x * self.cSE(x) + x * self.sSE(x)
 
 class ConvBlock(nn.Module):
+    # dwconv + norm + pwconv1 + act + pwconv2 + gamma
     def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
         super().__init__()
         self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)#深度可分离卷积层
         self.norm = LayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(dim, 4 * dim)#全连接层，用于改变特征图的通道数。
-        self.act = nn.GELU()
+        self.act = nn.GELU()#将逐元素地应用在输入张量上，因此输入形状和输出形状保持一致。
         self.pwconv2 = nn.Linear(4 * dim, dim)#全连接层，用于改变特征图的通道数。
         self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim)), requires_grad=True) if layer_scale_init_value > 0 else None
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
     def forward(self, x):
         ipt = x
-        x = self.dwconv(x)
-        x = x.permute(0, 2, 3, 1)
+        x = self.dwconv(x)#B C H W
+        x = x.permute(0, 2, 3, 1)#B H W C permute(0, 2, 3, 1)将通道数移到最后一维，方便在layernorm中使用chanel_last的方法以及方便全连接层的输入，
         x = self.norm(x)
-        x = self.pwconv1(x)
+        x = self.pwconv1(x)#输入形状应该是 (batch_size, *, input_features)。
         x = self.act(x)
-        x = self.pwconv2(x)
+        x = self.pwconv2(x)#输入形状应该是 (batch_size, *, input_features)。
         if self.gamma is not None:
-            x = self.gamma * x
-        x = x.permute(0, 3, 1, 2)
+            x = self.gamma * x #B H W C 可学习的缩放参数 gamma，用于在模型的每一层之后缩放输出，从而控制其幅度，较大的初始值可能导致梯度爆炸或梯度消失问题。随着训练的进行，gamma 会被梯度下降算法逐渐调整到合适的值，从而逐步增加每一层输出的幅度。
+        x = x.permute(0, 3, 1, 2)#permute(0, 3, 1, 2)将通道数移到第一维，方便后续操作。
         x = ipt + self.drop_path(x)
         return x
 
@@ -117,30 +120,36 @@ class AddCoords(nn.Module):
 class VPH(nn.Module):
     def __init__(self, dims=[96, 192], drop_path_rate=0.4, layer_scale_init_value=1e-6):
         super().__init__()
-        dp_rates=[x.item() for x in torch.linspace(0, drop_path_rate, 6)]
+        dp_rates=[x.item() for x in torch.linspace(0, drop_path_rate, 6)]#6个dropout率，等差数列
         self.downsample_layers = nn.ModuleList([nn.Sequential(nn.Conv2d(3, dims[0], kernel_size=4, stride=4),
                                                               LayerNorm(dims[0], eps=1e-6, data_format="channels_first")),
                                                 nn.Sequential(LayerNorm(dims[1], eps=1e-6, data_format="channels_first"),
                                                               nn.Conv2d(dims[0], dims[1], kernel_size=2, stride=2))])
         self.stages = nn.ModuleList([nn.Sequential(*[ConvBlock(dim=dims[0], drop_path=dp_rates[j],
-                                                               layer_scale_init_value=layer_scale_init_value) for j in range(3)]),
+                                                               layer_scale_init_value=layer_scale_init_value) for j in range(3)]),#layer_scale_init_value使得每层的输出的幅度变化更加平滑，避免梯度爆炸或梯度消失问题。
                                      nn.Sequential(*[ConvBlock(dim=dims[1], drop_path=dp_rates[3 + j],
                                                                layer_scale_init_value=layer_scale_init_value) for j in range(3)])])
-        self.apply(self._init_weights)
+        #stage:3个convblock
+        self.apply(self._init_weights)#对模型中的每一层应用 _init_weights 方法，用于初始化每一层的权重。
+        self.initnorm()#初始化4个layernorm层，可以通过类似 self.norm0 的方式进行访问。
 
     def initnorm(self):
-        norm_layer = partial(LayerNorm, eps=1e-6, data_format="channels_first")
+        #初始化模型中的 LayerNorm层。
+        norm_layer = partial(LayerNorm, eps=1e-6, data_format="channels_first")## 创建LayerNorm层的实例，其中eps和data_format参数被固定。partial函数用于创建一个新的函数，该函数在调用时会带有预设的参数值。
         for i_layer in range(4):
-            layer = norm_layer(self.dims[i_layer])
-            layer_name = f'norm{i_layer}'
-            self.add_module(layer_name, layer)
+            layer = norm_layer(self.dims[i_layer])#部分函数实例化 LayerNorm 层，self.dims[i_layer] 作为 normalized_shape 传递。
+            layer_name = f'norm{i_layer}'# 构建LayerNorm层的名称，例如"norm0", "norm1", ..., "norm3"
+            self.add_module(layer_name, layer)# add_module是Module类的一个方法，用于将子模块添加到模块中。
 
     def _init_weights(self, m):
+        #_init_weights 方法用于初始化卷积层和线性层的权重和偏置。
         if isinstance(m, (nn.Conv2d, nn.Linear)):
-            trunc_normal_(m.weight, std=.02)
-            nn.init.constant_(m.bias, 0)
+            trunc_normal_(m.weight, std=.02)#将权重初始化为截断正态分布，标准差为 0.02
+            nn.init.constant_(m.bias, 0)# 将偏置初始化为 0
 
     def init_weights(self, pretrained=None):
+        #方法用于初始化整个模型的权重，允许使用预训练的权重。
+        # 没用上，疑似冗余
         def _init_weights(m):
             if isinstance(m, nn.Linear):
                 trunc_normal_(m.weight, std=.02)
@@ -153,9 +162,9 @@ class VPH(nn.Module):
 
     def forward(self, x):
         outs = []
-        x = self.stages[0](self.downsample_layers[0](x))
+        x = self.stages[0](self.downsample_layers[0](x))#卷积后归一化：在提取特征后进行归一化，可以确保输出特征的分布稳定，减少后续层的计算负担。
         outs = [self.norm0(x)]
-        x = self.stages[1](self.downsample_layers[1](x))
+        x = self.stages[1](self.downsample_layers[1](x))#卷积前归一化：可以让卷积操作在更稳定的分布上进行，这对训练深层网络有利。
         outs.append(self.norm1(x))
         return outs
 
@@ -298,7 +307,7 @@ class DTD(SegmentationModel):
     def __init__(self, encoder_name = "resnet18", decoder_channels = (384, 192, 96, 64), classes = 1):
         super().__init__()
         self.vph = VPH()
-        self.swin = SwinTransformerV2()
+        self.swin = SwinTransformerV2()#window_size=8 #加载pt文件
         self.fph = FPH()
         self.decoder = MID(encoder_channels=(96, 192, 384, 768), decoder_channels=decoder_channels)
         self.segmentation_head = SegmentationHead(in_channels=decoder_channels[-1], out_channels=classes, upsampling=2.0)
@@ -306,15 +315,15 @@ class DTD(SegmentationModel):
         self.FU = nn.Sequential(SCSEModule(448),nn.Conv2d(448,192,3,1,1),nn.BatchNorm2d(192),nn.ReLU(True))
         self.classification_head = None
         self.initialize()
-
+#2,2,18,2
     def forward(self,x,dct,qt):
-        features = self.vph(self.addcoords(x))
-        features[1] = self.FU(torch.cat((features[1],self.fph(dct,qt)),1))
+        features = self.vph(self.addcoords(x))#4x
+        features[1] = self.FU(torch.cat((features[1],self.fph(dct,qt)),1))#8x
         rst = self.swin[0](features[1].flatten(2).transpose(1,2).contiguous())
         N,L,C = rst.shape
         H = W = int(L**(1/2))
-        features.append(self.vph.norm2(rst.transpose(1,2).contiguous().view(N,C,H,W)))
-        features.append(self.vph.norm3(self.swin[2](self.swin[1](rst)).transpose(1,2).contiguous().view(N,C*2,H//2,W//2)))
+        features.append(self.vph.norm2(rst.transpose(1,2).contiguous().view(N,C,H,W)))#16x
+        features.append(self.vph.norm3(self.swin[2](self.swin[1](rst)).transpose(1,2).contiguous().view(N,C*2,H//2,W//2)))#32x
         decoder_output = self.decoder(*features)
         return self.segmentation_head(decoder_output)
 
