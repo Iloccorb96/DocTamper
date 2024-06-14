@@ -20,8 +20,7 @@ import matplotlib.colors as colors
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-# from .transform import train_transform
-# from .transform import val_transform
+
 train_transform = A.Compose([
     # reszie
     A.Resize(512, 512),
@@ -51,7 +50,7 @@ class Dataset(Dataset):
         return len(self.ids)
 
     @classmethod
-    def preprocess(cls, pil_img):
+    def preprocess(cls, pil_img): #调用类方法，不需要创建类的实例
         img_nd = np.array(pil_img)
         if len(img_nd.shape) == 2:
             img_nd = np.expand_dims(img_nd, axis=2)
