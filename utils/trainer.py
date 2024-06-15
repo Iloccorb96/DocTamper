@@ -89,16 +89,15 @@ def train_net(param, model, device='cuda'):
         train_epoch_loss = AverageMeter()
         train_iter_loss = AverageMeter()
         for batch_idx, batch_samples in enumerate(train_loader):
-            data, target = batch_samples['image'], batch_samples['label']
-            data, target = Variable(data.to(device)), Variable(target.to(device))
+            data, target, dct_coef, qs = batch_samples['image'], batch_samples['label'], batch_samples['dct'], batch_samples['qtb']#, batch_samples['q']
+            data, target, dct_coef, qs = Variable(data.to(device)), Variable(target.to(device)), Variable(dct_coef.to(device)), Variable(qs.unsqueeze(1).to(device))
             optimizer.zero_grad()
             with autocast():  # need pytorch>1.6，混合精度训练
-                pred = model(data)
+                pred = model(data,dct_coef,qs)
                 loss = LovaszLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
-
             scheduler.step(epoch + batch_idx / train_loader_size)# 可以在每个批次结束后更新学习率，而不是等到整个 epoch 结束
             image_loss = loss.item()# 计算损失
             train_epoch_loss.update(image_loss)# 更新损失
@@ -122,18 +121,16 @@ def train_net(param, model, device='cuda'):
         iou = IOUMetric(2)
         with torch.no_grad():
             for batch_idx, batch_samples in enumerate(valid_loader):
-                data, target = batch_samples['image'], batch_samples['label']
-                data, target = Variable(data.to(device)), Variable(target.to(device))
-                pred = model(data)
+
+                data, target, dct_coef, qs= batch_samples['image'], batch_samples['label'], batch_samples['dct'], batch_samples['qtb'], batch_samples['q']
+                data, target, dct_coef, qs = Variable(data.to(device)), Variable(target.to(device)), Variable(dct_coef.to(device)), Variable(qs.unsqueeze(1).to(device))
+                pred = model(data, dct_coef, qs)
                 loss = LovaszLoss_fn(pred, target) + SoftCrossEntropy_fn(pred, target)
                 pred = pred.cpu().data.numpy()
                 pred = np.argmax(pred, axis=1)
                 iou.add_batch(pred, target.cpu().data.numpy())
-                #
                 image_loss = loss.item()
                 valid_epoch_loss.update(image_loss)#只看epoch损失
-                # valid_iter_loss.update(image_loss)
-            # val_loss = valid_iter_loss.avg
             acc, acc_cls, iu, mean_iu, fwavacc, precision, recall, f1 = iou.evaluate()
             logger.info('[val] epoch:{} iou:{},acc:{}, precision:{},recall:{},f1:{}'.format(epoch, iu,acc,precision, recall, f1))
 
@@ -153,13 +150,12 @@ def train_net(param, model, device='cuda'):
         filename = os.path.join(save_ckpt_dir, 'checkpoint-latest.pth')
         torch.save(state, filename)  # pytorch1.6会压缩模型，低版本无法加载
         # 保存最优模型
-        if iu[1] > best_iou:  # train_loss_per_epoch valid_loss_per_epoch
+        if iu > best_iou:  # train_loss_per_epoch valid_loss_per_epoch
             filename = os.path.join(save_ckpt_dir, 'checkpoint-best.pth')
             torch.save(state, filename)
-            best_iou = iu[1]
+            best_iou = iu
             best_mode = copy.deepcopy(model)
             logger.info('[save] Best Model saved at epoch:{} ============================='.format(epoch))
-
 
     return best_mode, model
 #

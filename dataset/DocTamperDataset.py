@@ -85,5 +85,5 @@ class DocTamperDataset(Dataset):
             'label': transformed['mask'].long,
             'dct': np.clip(np.abs(dct_coef),0,20),
             'qtb':use_qtb,
-            'q':rand_q
+            # 'q':rand_q
         }

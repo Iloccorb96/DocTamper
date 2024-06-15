@@ -2,12 +2,12 @@ from PIL import Image
 import os
 import cv2
 import numpy as np
-name = '30AC03A0012402236323出院记录.jpg'
-# pic1 = rf'D:\PS\za_真实样本\01PS项目\PS转存\ml01\JPEG\{name}'
-pic1 = rf'D:\PS\za_真实样本\01PS项目\ps后\ml_01\{name}'
-# pic2 = rf'D:\PS\za_真实样本\01PS项目\待PS\ml_01\{name}'
+name = 'ml02'
+pic1 = rf'D:\PS\za_真实样本\01PS项目\03saved_pic\ml01\JPEG\{name}'
+# pic1 = rf'D:\PS\za_真实样本\01PS项目\ps后\ml_01\{name}'
+pic2 = rf'D:\PS\za_真实样本\01PS项目\02after\ml_01\{name}'
 # pic1 = rf'D:\PS\za_真实样本\01PS项目\tmp\ml1.jpg'
-pic2 = rf'D:\PS\za_真实样本\01PS项目\tmp\ml2.jpg'# 新转存的
+# pic2 = rf'D:\PS\za_真实样本\01PS项目\tmp\ml2.jpg'# 新转存的
 
 def read_image_as_array(file_path):
     # 以二进制模式读取图像文件
@@ -22,11 +22,8 @@ def read_image_as_array(file_path):
 
     return image
 
-
 img_0 = read_image_as_array(pic1)
 img_1 = read_image_as_array(pic2)
-
-
 
 def get_mask(img_0, img_1,threshold=0):
     '''两个图片对比处理产生mask图'''
@@ -39,6 +36,7 @@ def get_mask(img_0, img_1,threshold=0):
     return mask
 
 
+
 # 生成mask图
 mask = get_mask(img_0, img_1)
 mask = Image.fromarray(mask)
@@ -46,7 +44,22 @@ mask = Image.fromarray(mask)
 mask.show()
 
 
-e = os.listdir(r'D:\PS\za_真实样本\01PS项目\ml_01\ml_01\11')
-for i in e:
-    i.replace('mask_','')
-e
+
+
+#寻找源图
+#待寻找的图片目录
+# import os
+# dir_path = r'D:\PS\01PSproject\02after_ps\fy01'
+# from_path = r'D:\PS\za_真实样本\invoice\invoice'
+# dest_path = r'D:\PS\01PSproject\01待PS\fy01'
+# #遍历dir_path下的文件，把from_path下同名的文件复制到dest_path下
+# for file in os.listdir(dir_path):
+#     #获取from_path下同名文件路径
+#     from_file_path = os.path.join(from_path,file)
+#     if os.path.exists(from_file_path):
+#         #复制文件到dest_path下
+#         dest_file_path = os.path.join(dest_path,file)
+#         os.system(f'copy {from_file_path} {dest_file_path}')
+#         print(f'{file}复制成功')
+#     else:
+#         print(f'{file}不存在')
