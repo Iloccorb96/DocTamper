@@ -40,25 +40,25 @@ class IOUMetric:
         return acc, acc_cls, iu, mean_iu, fwavacc, precision, recall, f1
 
 
-iou=IOUMetric(2)
-precisons = []
-recalls = []
-with torch.no_grad():
-    for batch_idx, batch_samples in enumerate(tqdm(test_loader)):
-        pred = model(datas) # pred of shape (Batchsize, 2, img_Height, img_Width)
-        pred_tamper = pred.argmax(1)
-        target_ = target.squeeze(1)
-        match = (pred_tamper*target_).sum((1,2))
-        preds = pred_tamper.sum((1,2))
-        target_sum = target_.sum((1,2))
-        precisons.append((match/(preds+1e-8)).mean().item())
-        recalls.append((match/target_sum).mean().item())
-        pred=pred.cpu().data.numpy()
-        pred= np.argmax(pred,axis=1)
-        iou.add_batch(pred,target.cpu().data.numpy())
-    acc, acc_cls, iu, mean_iu, fwavacc=iou.evaluate()
-    precisons = np.array(precisons).mean()
-    recalls = np.array(recalls).mean()
-    print('[val] iou:{} p:{} r:{} f:{}'.format(iu[1],precisons,recalls,(2*precisons*recalls/(precisons+recalls+1e-8))))
+# iou=IOUMetric(2)
+# precisons = []
+# recalls = []
+# with torch.no_grad():
+#     for batch_idx, batch_samples in enumerate(tqdm(test_loader)):
+#         pred = model(datas) # pred of shape (Batchsize, 2, img_Height, img_Width)
+#         pred_tamper = pred.argmax(1)
+#         target_ = target.squeeze(1)
+#         match = (pred_tamper*target_).sum((1,2))
+#         preds = pred_tamper.sum((1,2))
+#         target_sum = target_.sum((1,2))
+#         precisons.append((match/(preds+1e-8)).mean().item())
+#         recalls.append((match/target_sum).mean().item())
+#         pred=pred.cpu().data.numpy()
+#         pred= np.argmax(pred,axis=1)
+#         iou.add_batch(pred,target.cpu().data.numpy())
+#     acc, acc_cls, iu, mean_iu, fwavacc=iou.evaluate()
+#     precisons = np.array(precisons).mean()
+#     recalls = np.array(recalls).mean()
+#     print('[val] iou:{} p:{} r:{} f:{}'.format(iu[1],precisons,recalls,(2*precisons*recalls/(precisons+recalls+1e-8))))
 
 

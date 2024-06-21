@@ -110,7 +110,7 @@ class AddCoords(nn.Module):
         self.with_r = with_r
     def forward(self, input_tensor):
         batch_size, _, x_dim, y_dim = input_tensor.size()
-        xx_c, yy_c = torch.meshgrid(torch.arange(x_dim,dtype=input_tensor.dtype), torch.arange(y_dim,dtype=input_tensor.dtype))
+        xx_c, yy_c = torch.meshgrid(torch.arange(x_dim,dtype=input_tensor.dtype), torch.arange(y_dim,dtype=input_tensor.dtype),indexing='ij')
         xx_c = xx_c.to(input_tensor.device) / (x_dim - 1) * 2 - 1
         yy_c = yy_c.to(input_tensor.device) / (y_dim - 1) * 2 - 1
         xx_c = xx_c.expand(batch_size,1,x_dim,y_dim)

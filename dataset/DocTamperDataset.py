@@ -13,6 +13,24 @@ import logging
 import random
 from glob import glob
 
+
+def preprocess_mask(mask):
+    # 假设 mask 的形状为 [512, 512, 3]，值为 0 或 255
+    # Step 1: 将三通道的 mask 转换为单通道的二值 mask
+    # 因为三个通道的值相同，所以可以取其中一个通道的值
+    binary_mask = mask[..., 0]  # 取第一个通道的值
+    # 将 255 转换为 1
+    binary_mask = (binary_mask == 255).astype(np.int64)  # 形状为 [batch, 512, 512]
+
+    # Step 2: 将二值 mask 转换为 one-hot 编码的格式
+    height, width = binary_mask.shape
+    one_hot_mask = np.zeros(( 2, height, width), dtype=np.int64)  # 形状为 [batch, 2, 512, 512]
+
+    one_hot_mask[ 0, :, :] = (binary_mask == 0).astype(np.int64)
+    one_hot_mask[ 1, :, :] = (binary_mask == 1).astype(np.int64)
+    class_mask = np.argmax(one_hot_mask, axis=0)
+    return class_mask
+
 train_transform = A.Compose([
     # A.Resize(512, 512),
     A.HorizontalFlip(p=0.5),#水平翻转
@@ -21,8 +39,8 @@ train_transform = A.Compose([
         A.RandomRotate90(p=0.5),#旋转90°
         A.RandomBrightnessContrast(p=0.2, brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2)),#亮度、对比度
         A.HueSaturationValue(p=0.2, hue_shift_limit=0.2, sat_shift_limit=0.2, val_shift_limit=0.2),#色彩
-        A.ShiftScaleRotate(p=0.2, shift_limit=0.0625, scale_limit=0.2, rotate_limit=20),#仿射变换：随机对图像进行平移、缩放和旋转。shift_limit 定义了平移的范围（这里是图像宽度和高度的 6.25%），scale_limit 定义了缩放的范围（这里是原始尺寸的 20%）
-        A.CoarseDropout(p=0.2),# 粗暴丢弃：随机丢弃图像中的一部分区域，这可以增加模型对遮挡和噪声的鲁棒性。
+#         A.ShiftScaleRotate(p=0.2, shift_limit=0.0625, scale_limit=0.2, rotate_limit=20),#仿射变换：随机对图像进行平移、缩放和旋转。shift_limit 定义了平移的范围（这里是图像宽度和高度的 6.25%），scale_limit 定义了缩放的范围（这里是原始尺寸的 20%）
+#         A.CoarseDropout(p=0.2),# 粗暴丢弃：随机丢弃图像中的一部分区域，这可以增加模型对遮挡和噪声的鲁棒性。
         A.Transpose(p=0.5)#将图像的行和列互换，即宽度和高度互换。
     ]),
     A.Normalize(mean=(0.485, 0.455, 0.406), std=(0.229, 0.224, 0.225)),
@@ -62,8 +80,8 @@ class DocTamperDataset(Dataset):
     def __getitem__(self, i):
         # 读取图片
         idx = self.ids[i]
-        img_file = glob(self.imgs_dir + idx + '.*')
-        mask_file = glob(self.masks_dir + idx + '.*')
+        img_file = glob(self.imgs_dir + idx + '.*')[0]
+        mask_file = glob(self.masks_dir + idx + '.*')[0]
         # 随机压缩
         rand_q = random.randint(100-5*self.q_level, 100)#从95-100，衰减为70-100
         use_qtb = self.pks[rand_q]
@@ -77,13 +95,13 @@ class DocTamperDataset(Dataset):
             im = np.array(im)
             dct_coef = torch.tensor(np.clip(np.abs(dct), 0, 20))
             if self.mode == 'train':
-                transformed = train_transform(image=im, mask=cv2.imread(mask_file))
+                transformed = train_transform(image=im, mask=preprocess_mask(cv2.imread(mask_file)))
             elif self.mode == 'val':
-                transformed = val_transform(image=im, mask=cv2.imread(mask_file))
+                transformed = val_transform(image=im, mask=preprocess_mask(cv2.imread(mask_file)))
         return {
             'image': transformed['image'],
-            'label': transformed['mask'].long,
-            'dct': np.clip(np.abs(dct_coef),0,20),
+            'label': transformed['mask'].long(),
+            'dct': dct_coef
             'qtb':use_qtb,
             # 'q':rand_q
         }

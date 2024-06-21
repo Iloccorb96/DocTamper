@@ -1,41 +1,14 @@
-import os
-import cv2
-import lmdb
-import torch
-# import jpegio
-import numpy as np
-import torch.nn as nn
-import gc
-import math
-import time
-import copy
-import logging
-import torch.optim as optim
-import torch.distributed as dist
-import random
-import pickle
-import six
-from glob import glob
-from PIL import Image
-from tqdm import tqdm
-from torch.autograd import Variable
-from torch.cuda.amp import autocast
-import segmentation_models_pytorch as smp
-from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler#need pytorch>1.6
-from losses import DiceLoss,FocalLoss,SoftCrossEntropyLoss,LovaszLoss
-from fph import FPH
-import albumentations as A
-from swins import *
-from albumentations.pytorch import ToTensorV2
-import torchvision
+from models.fph import FPH
+from models.swins import *
 import torch.nn.functional as F
 from timm.models.layers import trunc_normal_, DropPath
 from functools import partial
 from segmentation_models_pytorch.base import modules as md
-from typing import Optional, Union, List
 from segmentation_models_pytorch.base import SegmentationModel
-
+import torch
+torch.backends.cudnn.enabled=False
+import pdb
 class LayerNorm(nn.Module):
     # LayerNorm
     def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
@@ -106,7 +79,7 @@ class AddCoords(nn.Module):
         self.with_r = with_r
     def forward(self, input_tensor):
         batch_size, _, x_dim, y_dim = input_tensor.size()
-        xx_c, yy_c = torch.meshgrid(torch.arange(x_dim,dtype=input_tensor.dtype), torch.arange(y_dim,dtype=input_tensor.dtype))
+        xx_c, yy_c = torch.meshgrid(torch.arange(x_dim,dtype=input_tensor.dtype), torch.arange(y_dim,dtype=input_tensor.dtype),indexing='ij')
         xx_c = xx_c.to(input_tensor.device) / (x_dim - 1) * 2 - 1
         yy_c = yy_c.to(input_tensor.device) / (y_dim - 1) * 2 - 1
         xx_c = xx_c.expand(batch_size,1,x_dim,y_dim)
@@ -267,9 +240,9 @@ class FUSE3(nn.Module):
 class MID(nn.Module):
     def __init__(self, encoder_channels, decoder_channels):
         super().__init__()
-        encoder_channels = encoder_channels[1:][::-1]
+        encoder_channels = encoder_channels[1:][::-1]#跳过第一个通道数并反转列表。[::n]为slice step
         self.in_channels = [encoder_channels[0]] + list(decoder_channels[:-1])
-        self.add_channels = list(encoder_channels[1:]) + [96]
+        self.add_channels = list(encoder_channels[1:]) + [96]#每一层添加的通道数。
         self.out_channels = decoder_channels
         self.fuse1 = FUSE1()
         self.fuse2 = FUSE2()
@@ -306,8 +279,8 @@ class MID(nn.Module):
 class DTD(SegmentationModel):
     def __init__(self, encoder_name = "resnet18", decoder_channels = (384, 192, 96, 64), classes = 1):
         super().__init__()
-        self.vph = VPH()
-        self.swin = SwinTransformerV2()#window_size=8 #加载pt文件
+        self.vph = torch.load('/data/jinrong/wcw/PS/DocTamper/train_logs/pre_trained/vph_imagenet.pt')
+        self.swin =torch.load('/data/jinrong/wcw/PS/DocTamper_hehe/checkp/swin_imagenet.pt')#window_size=8 #加载pt文件
         self.fph = FPH()
         self.decoder = MID(encoder_channels=(96, 192, 384, 768), decoder_channels=decoder_channels)
         self.segmentation_head = SegmentationHead(in_channels=decoder_channels[-1], out_channels=classes, upsampling=2.0)
@@ -334,6 +307,7 @@ class seg_dtd(nn.Module):
 
     @autocast()
     def forward(self, x, dct, qt):
+#         pdb.set_trace()
         x = self.model(x, dct, qt)
         return x
 

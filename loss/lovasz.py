@@ -1,6 +1,21 @@
 """
 Lovasz-Softmax and Jaccard hinge loss in PyTorch
 Maxim Berman 2018 ESAT-PSI KU Leuven (MIT License)
+1. Binary Mode
+用于二分类任务，每个像素只有两个类别（例如前景和背景）。
+
+y_pred：形状为 [N, H, W]，表示每个像素的预测值（通常为 logits）。
+y_true：形状为 [N, H, W]，表示每个像素的真实标签（0 或 1）。
+2. Multiclass Mode
+用于多分类任务，每个像素属于多个类别之一。
+
+y_pred：形状为 [N, C, H, W]，表示每个像素的预测值。C 是类别数，值为 softmax 输出（0 到 1 之间）。
+y_true：形状为 [N, H, W]，表示每个像素的真实标签（0 到 C-1）。
+3. Multilabel Mode
+用于多标签分类任务，每个像素可以同时属于多个类别。
+
+y_pred：形状为 [N, C, H, W]，表示每个像素的预测值（通常为 logits）。
+y_true：形状为 [N, C, H, W]，表示每个像素的真实标签（0 或 1）。
 """
 
 from __future__ import print_function, division
@@ -26,7 +41,7 @@ def _lovasz_grad(gt_sorted):
     p = len(gt_sorted)
     gts = gt_sorted.sum()
     intersection = gts - gt_sorted.float().cumsum(0)
-    union = gts + (1 - gt_sorted).float().cumsum(0)
+    union = gts + (1 - gt_sorted).float().cumsum(0) #+ 1e-6  # Add small epsilon to avoid division by zero
     jaccard = 1.0 - intersection / union
     if p > 1:  # cover 1-pixel case
         jaccard[1:p] = jaccard[1:p] - jaccard[0:-1]
@@ -216,7 +231,8 @@ class LovaszLoss(_Loss):
         self.per_image = per_image
 
     def forward(self, y_pred, y_true):
-
+        y_pred = y_pred.float()
+        y_true = y_true.long()
         if self.mode in {BINARY_MODE, MULTILABEL_MODE}:
             loss = _lovasz_hinge(y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index)
         elif self.mode == MULTICLASS_MODE:

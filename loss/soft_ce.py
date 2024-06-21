@@ -36,6 +36,8 @@ class SoftCrossEntropyLoss(nn.Module):
         self.dim = dim
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        y_pred = y_pred.float()
+        y_true = y_true.long()
         log_prob = F.log_softmax(y_pred, dim=self.dim)
         return label_smoothed_nll_loss(
             log_prob,
