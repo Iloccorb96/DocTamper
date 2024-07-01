@@ -1,17 +1,12 @@
-
 from torch.cuda.amp import autocast, GradScaler#need pytorch>1.6
-from losses import DiceLoss,FocalLoss,SoftCrossEntropyLoss,LovaszLoss
 from fph import FPH
-import albumentations as A
 from swins import *
-from albumentations.pytorch import ToTensorV2
-import torchvision
 import torch.nn.functional as F
 from timm.models.layers import trunc_normal_, DropPath
 from functools import partial
 from segmentation_models_pytorch.base import modules as md
-from typing import Optional, Union, List
 from segmentation_models_pytorch.base import SegmentationModel
+from transnext2 import transnext_base
 
 class LayerNorm(nn.Module):
     # LayerNorm
@@ -99,9 +94,8 @@ class AddCoords(nn.Module):
         return ret#shape[batch_size, channels+2+1, x_dim, y_dim]
 
 class VPH(nn.Module):
-    def __init__(self, dims=[96, 192,384,768], drop_path_rate=0.4, layer_scale_init_value=1e-6):
+    def __init__(self, dims=[96, 192], drop_path_rate=0.4, layer_scale_init_value=1e-6):
         super().__init__()
-        self.dims = dims
         dp_rates=[x.item() for x in torch.linspace(0, drop_path_rate, 6)]#6个dropout率，等差数列
         self.downsample_layers = nn.ModuleList([nn.Sequential(nn.Conv2d(3, dims[0], kernel_size=4, stride=4),
                                                               LayerNorm(dims[0], eps=1e-6, data_format="channels_first")),
@@ -119,7 +113,7 @@ class VPH(nn.Module):
         #初始化模型中的 LayerNorm层。
         norm_layer = partial(LayerNorm, eps=1e-6, data_format="channels_first")## 创建LayerNorm层的实例，其中eps和data_format参数被固定。partial函数用于创建一个新的函数，该函数在调用时会带有预设的参数值。
         for i_layer in range(4):
-            layer = norm_layer(self.dims[i_layer])#部分函数实例化 LayerNorm 层，self.dims[i_layer] 作为 normalized_shape 传递。
+            layer = norm_layer(dims[i_layer])#部分函数实例化 LayerNorm 层，self.dims[i_layer] 作为 normalized_shape 传递。
             layer_name = f'norm{i_layer}'# 构建LayerNorm层的名称，例如"norm0", "norm1", ..., "norm3"
             self.add_module(layer_name, layer)# add_module是Module类的一个方法，用于将子模块添加到模块中。
 
@@ -289,7 +283,7 @@ class DTD(SegmentationModel):
     def __init__(self, encoder_name = "resnet18", decoder_channels = (384, 192, 96, 64), classes = 1):
         super().__init__()
         self.vph = VPH()
-        self.swin = SwinTransformerV2()#window_size=8 #加载pt文件
+        self.transnext = transnext_base()#参数待定
         self.fph = FPH()
         self.decoder = MID(encoder_channels=(96, 192, 384, 768), decoder_channels=decoder_channels)
         self.segmentation_head = SegmentationHead(in_channels=decoder_channels[-1], out_channels=classes, upsampling=2.0)
@@ -300,13 +294,10 @@ class DTD(SegmentationModel):
 #2,2,18,2
     def forward(self,x,dct,qt):
         #features0为vph输出，features1为vph+fph输出，features2、3为swins输出
-        features = self.vph(self.addcoords(x))#(B,92,128,128)4x
-        features[1] = self.FU(torch.cat((features[1],self.fph(dct,qt)),1))#输入为8x
-        rst = self.swin[0](features[1].flatten(2).transpose(1,2).contiguous())#输入为(B,384,64,64),8x,输出为16x
-        N,L,C = rst.shape
-        H = W = int(L**(1/2))
-        features.append(self.vph.norm2(rst.transpose(1,2).contiguous().view(N,C,H,W)))#16x
-        features.append(self.vph.norm3(self.swin[2](self.swin[1](rst)).transpose(1,2).contiguous().view(N,C*2,H//2,W//2)))#输入为16x,输出为32x
+        features = self.vph(self.addcoords(x))#4x
+        features[1] = self.FU(torch.cat((features[1],self.fph(dct,qt)),1))#8x
+        transnext_rst  = self.transnext((features[1].flatten(2).transpose(1,2).contiguous(),features[1].shape[2:]))#features[1]输入为(B,192,64,64)
+        features = [features[0],features[1],self.vph.norm2(transnext_rst[0]),self.vph.norm3(transnext_rst[1])]
         decoder_output = self.decoder(*features)
         return self.segmentation_head(decoder_output)
 

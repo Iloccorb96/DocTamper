@@ -127,13 +127,19 @@ class FPH(nn.Module):
         super(FPH, self).__init__()
         self.obembed = nn.Embedding(21,21).from_pretrained(torch.eye(21))#通过这一步，输入数据中每个值（假设在 0 到 20 之间）将被映射到一个 21 维的独热向量（one-hot vector）,即将（512,512）变成（512,512,21）
         self.qtembed = nn.Embedding(64,16)#通过这一步，量化表中的每个值（假设在 0 到 63 之间）将被映射到一个 16 维的向量。即：（8,8）变成（8,8,16）
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels=21,out_channels=64,kernel_size=3,stride=1,dilation=8,padding=8),nn.BatchNorm2d(64, momentum=0.01),nn.ReLU(inplace=True))
-        self.conv2 = nn.Sequential(nn.Conv2d(in_channels=64, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False),nn.BatchNorm2d(16, momentum=0.01),nn.ReLU(inplace=True))
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels=21,out_channels=64,kernel_size=3,stride=1,dilation=8,padding=8),
+                                   nn.BatchNorm2d(64, momentum=0.01),nn.ReLU(inplace=True))
+        self.conv2 = nn.Sequential(nn.Conv2d(in_channels=64, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False),
+                                   nn.BatchNorm2d(16, momentum=0.01),nn.ReLU(inplace=True))
         self.addcoords = AddCoords()
         repeats = (1,1,1)
         in_channles = (256,256,256)
         out_channles = (256,256,512)
-        self.conv0 = nn.Sequential(nn.Conv2d(in_channels=35, out_channels=256, kernel_size=8, stride=8, padding=0, bias=False),nn.BatchNorm2d(256, momentum=0.01),nn.ReLU(inplace=True),MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[0], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[1], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[1], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),)
+        self.conv0 = nn.Sequential(nn.Conv2d(in_channels=35, out_channels=256, kernel_size=8, stride=8, padding=0, bias=False),
+                                   nn.BatchNorm2d(256, momentum=0.01),nn.ReLU(inplace=True),
+                                   MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[0], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),
+                                   MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[1], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),
+                                   MBConvBlock(BlockArgs(num_repeat=repeats[0], kernel_size=3, stride=[1], expand_ratio=6, input_filters=in_channles[1], output_filters=in_channles[1], se_ratio=0.25, id_skip=True), global_params),)
 
     def forward(self, x, qtable):
         x = self.conv2(self.conv1(self.obembed(x).permute(0,3,1,2).contiguous()))#从 (batch_size, height, width, channels) 变为 (batch_size, channels, height, width)

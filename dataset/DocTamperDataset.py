@@ -101,7 +101,7 @@ class DocTamperDataset(Dataset):
         return {
             'image': transformed['image'],
             'label': transformed['mask'].long(),
-            'dct': dct_coef
+            'dct': dct_coef,
             'qtb':use_qtb,
             # 'q':rand_q
         }

@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 # 图片路径
-name = 'gp02'
+name = 'gp03'
 pic1 = rf'D:\PS\01PSproject\03saved_pic\{name}'
 # pic1 = rf'D:\PS\za_真实样本\01PS项目\ps后\ml_01\{name}'
 pic2 = rf'D:\PS\01PSproject\02after_ps\{name}'
@@ -103,3 +103,20 @@ img = read_image_as_array(filename)
 img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 cv2.imencode('.jpg', img)[1].tofile(filename)
 '''
+import cv2
+import numpy as np
+import os
+import tqdm
+# aa = read_image_as_array(r'D:\PS\01PSproject\02after_ps\fy03\30AC03A0262310178367费用清单5.jpg')
+file_dir = r'D:\PS\01PSproject\04mask\ml03'
+# file_dir = r'D:\PS\01PSproject\02after_ps\ml03'
+file_path = [os.path.join(file_dir, file) for file in os.listdir(file_dir)]
+for file in tqdm.tqdm(file_path):
+    img = read_image_as_array(file)
+    cv2.imencode('.png', img)[1].tofile(file)
+    # cv2.imwrite(file, img)
+
+
+
+aa = read_image_as_array(r'D:\PS\01PSproject\04mask\04mask2\fh03\mask_202311061100300604760088839783正规医疗发票_0010.png')
+
