@@ -1,0 +1,64 @@
+=====================================================================================
+Layer (type:depth-idx)                                       Param #
+=====================================================================================
+seg_dtd                                                      --
+├─DTD: 1-1                                                   --
+│    └─VPH: 2-1                                              --
+│    │    └─ModuleList: 3-1                                  83,616
+│    │    └─ModuleList: 3-2                                  1,156,032
+│    │    └─LayerNorm: 3-3                                   192
+│    │    └─LayerNorm: 3-4                                   384
+│    │    └─LayerNorm: 3-5                                   768
+│    │    └─LayerNorm: 3-6                                   1,536
+│    └─ModalitiesExtractor: 2-2                              --
+│    │    └─Sequential: 3-7                                  (557,249)
+│    │    └─BayarConv2d: 3-8                                 216
+│    │    └─SRMFilter: 3-9                                   --
+│    └─VPH: 2-3                                              --
+│    │    └─ModuleList: 3-10                                 83,616
+│    │    └─ModuleList: 3-11                                 1,156,032
+│    │    └─LayerNorm: 3-12                                  384
+│    └─VPH: 2-4                                              --
+│    │    └─ModuleList: 3-13                                 83,616
+│    │    └─ModuleList: 3-14                                 1,156,032
+│    │    └─LayerNorm: 3-15                                  384
+│    └─VPH: 2-5                                              --
+│    │    └─ModuleList: 3-16                                 83,616
+│    │    └─ModuleList: 3-17                                 1,156,032
+│    │    └─LayerNorm: 3-18                                  384
+│    └─transnext_base: 2-6                                   --
+│    │    └─ModuleList: 3-19                                 3,982,240
+│    │    └─LayerNorm: 3-20                                  384
+│    │    └─ModuleList: 3-21                                 44,797,376
+│    │    └─LayerNorm: 3-22                                  768
+│    │    └─OverlapPatchEmbed: 3-23                          664,704
+│    │    └─ModuleList: 3-24                                 35,640,640
+│    │    └─LayerNorm: 3-25                                  1,536
+│    │    └─OverlapPatchEmbed: 3-26                          2,656,512
+│    └─FPH: 2-7                                              --
+│    │    └─Embedding: 3-27                                  (441)
+│    │    └─Embedding: 3-28                                  1,024
+│    │    └─Sequential: 3-29                                 12,288
+│    │    └─Sequential: 3-30                                 1,056
+│    │    └─AddCoords: 3-31                                  --
+│    │    └─Sequential: 3-32                                 3,589,312
+│    └─MID: 2-8                                              --
+│    │    └─FUSE1: 3-33                                      2,326,464
+│    │    └─FUSE2: 3-34                                      554,688
+│    │    └─FUSE3: 3-35                                      111,168
+│    │    └─ModuleDict: 3-36                                 9,801,088
+│    └─SegmentationHead: 2-9                                 --
+│    │    └─Conv2d: 3-37                                     1,154
+│    │    └─UpsamplingBilinear2d: 3-38                       --
+│    │    └─Activation: 3-39                                 --
+│    └─AddCoords: 2-10                                       --
+│    └─Sequential: 2-11                                      --
+│    │    └─SCSEModule: 3-40                                 133,185
+│    │    └─Conv2d: 3-41                                     1,769,664
+│    │    └─GroupNorm: 3-42                                  384
+│    │    └─ReLU: 3-43                                       --
+=====================================================================================
+Total params: 111,566,165
+Trainable params: 111,008,475
+Non-trainable params: 557,690
+=====================================================================================

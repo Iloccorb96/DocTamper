@@ -1,0 +1,32 @@
+[2024-07-02 15:39:12,377][DocTamperDataset.py][INFO] Creating dataset with 748 examples
+[2024-07-02 15:39:12,379][DocTamperDataset.py][INFO] Creating dataset with 208 examples
+[2024-07-02 15:39:15,170][trainer.py][INFO] [train] epoch:0 iter:0/187 0.00% lr:0.000000 loss:1.297583 ETA:8.0min
+[2024-07-02 15:40:18,345][trainer.py][INFO] [train] epoch:0 iter:50/187 26.74% lr:0.000040 loss:1.209200 ETA:3.0min
+[2024-07-02 15:41:19,339][trainer.py][INFO] [train] epoch:0 iter:100/187 53.48% lr:0.000080 loss:1.001777 ETA:1.0min
+[2024-07-02 15:42:21,374][trainer.py][INFO] [train] epoch:0 iter:150/187 80.21% lr:0.000120 loss:0.953196 ETA:0.0min
+[2024-07-02 15:43:34,704][trainer.py][INFO] [val] epoch:0 iou:[0.96773872 0.        ],acc:0.9677387200869046, precision:0.9677387200869046,recall:0.5,f1:0.6593399085609774
+[2024-07-02 15:43:38,216][trainer.py][INFO] [train] epoch:1 iter:0/187 0.00% lr:0.000150 loss:0.929957 ETA:4.0min
+[2024-07-02 15:44:36,680][trainer.py][INFO] [train] epoch:1 iter:50/187 26.74% lr:0.000190 loss:0.945983 ETA:3.0min
+[2024-07-02 15:45:36,796][trainer.py][INFO] [train] epoch:1 iter:100/187 53.48% lr:0.000230 loss:0.943550 ETA:1.0min
+[2024-07-02 15:46:37,508][trainer.py][INFO] [train] epoch:1 iter:150/187 80.21% lr:0.000270 loss:0.946052 ETA:0.0min
+[2024-07-02 15:47:50,684][trainer.py][INFO] [val] epoch:1 iou:[0.96773872 0.        ],acc:0.9677387200869046, precision:0.9677387200869046,recall:0.5,f1:0.6593399085609774
+[2024-07-02 15:47:58,355][DocTamperDataset.py][INFO] Creating dataset with 748 examples
+[2024-07-02 15:47:58,359][DocTamperDataset.py][INFO] Creating dataset with 208 examples
+[2024-07-02 15:47:59,861][trainer.py][INFO] [train] epoch:2 iter:0/187 0.00% lr:0.000300 loss:0.931065 ETA:4.0min
+[2024-07-02 15:49:05,514][trainer.py][INFO] [train] epoch:2 iter:50/187 26.74% lr:0.000250 loss:0.944928 ETA:3.0min
+[2024-07-02 15:50:11,921][trainer.py][INFO] [train] epoch:2 iter:100/187 53.48% lr:0.000134 loss:0.944500 ETA:2.0min
+[2024-07-02 15:51:17,588][trainer.py][INFO] [train] epoch:2 iter:150/187 80.21% lr:0.000028 loss:0.940659 ETA:1.0min
+[2024-07-02 15:52:35,336][trainer.py][INFO] [val] epoch:2 iou:[0.96773872 0.        ],acc:0.9677387200869046, precision:0.9677387200869046,recall:0.5,f1:0.6593399085609774
+[2024-07-02 15:52:45,162][trainer.py][INFO] [train] epoch:3 iter:0/187 0.00% lr:0.000000 loss:0.933023 ETA:5.0min
+[2024-07-02 15:53:50,529][trainer.py][INFO] [train] epoch:3 iter:50/187 26.74% lr:0.000050 loss:0.941428 ETA:3.0min
+[2024-07-02 15:54:56,504][trainer.py][INFO] [train] epoch:3 iter:100/187 53.48% lr:0.000166 loss:0.937947 ETA:2.0min
+[2024-07-02 15:56:03,234][trainer.py][INFO] [train] epoch:3 iter:150/187 80.21% lr:0.000272 loss:0.942440 ETA:1.0min
+[2024-07-02 15:57:07,254][trainer.py][INFO] [val] epoch:3 iou:[0.96773872 0.        ],acc:0.9677387200869046, precision:0.9677387200869046,recall:0.5,f1:0.6593399085609774
+[2024-07-02 15:57:17,569][trainer.py][INFO] [train] epoch:4 iter:0/187 0.00% lr:0.000300 loss:0.922846 ETA:4.0min
+[2024-07-02 15:58:30,993][trainer.py][INFO] [train] epoch:4 iter:50/187 26.74% lr:0.000250 loss:0.945614 ETA:3.0min
+[2024-07-02 15:59:45,045][trainer.py][INFO] [train] epoch:4 iter:100/187 53.48% lr:0.000134 loss:0.939976 ETA:2.0min
+[2024-07-02 16:00:58,414][trainer.py][INFO] [train] epoch:4 iter:150/187 80.21% lr:0.000028 loss:0.940271 ETA:1.0min
+[2024-07-02 16:02:20,776][trainer.py][INFO] [val] epoch:4 iou:[0.96773872 0.        ],acc:0.9677387200869046, precision:0.9677387200869046,recall:0.5,f1:0.6593399085609774
+[2024-07-02 16:02:31,274][trainer.py][INFO] [train] epoch:5 iter:0/187 0.00% lr:0.000000 loss:0.923520 ETA:4.0min
+[2024-07-02 16:03:44,470][trainer.py][INFO] [train] epoch:5 iter:50/187 26.74% lr:0.000050 loss:0.943276 ETA:3.0min
+[2024-07-02 16:04:57,923][trainer.py][INFO] [train] epoch:5 iter:100/187 53.48% lr:0.000166 loss:0.938743 ETA:2.0min
